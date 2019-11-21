@@ -7,10 +7,14 @@
 
 using namespace std;
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 	ios::sync_with_stdio(false);
 	ifstream in(argv[1], ios::in);
-	ofstream out(argv[2], ios::out);
+
+	if (strcmp(argv[2], "nooutput") != 0) ofstream out(argv[2], ios::out);
+	else ofstream out(argv, ios::app);
+
 	MPI_Init(&argc, &argv);
 
 	int size, rank, dataSize, processDataSize;
@@ -76,7 +80,7 @@ int main(int argc, char **argv) {
 	}
 
 	MPI_Gatherv(pivotalInProcess, pivoSize, MPI_INT, allPivotal, allPivotalCount, allPivotalDp, MPI_INT, 0,
-				MPI_COMM_WORLD);
+	            MPI_COMM_WORLD);
 	//receive pivotal element from all of the other processors
 	if (rank == 0) {
 		sort(allPivotal, allPivotal + allPivotalSize);
@@ -108,7 +112,7 @@ int main(int argc, char **argv) {
 	}
 
 	MPI_Alltoall(sendCount, 1, MPI_INT,
-				 recvCount, 1, MPI_INT, MPI_COMM_WORLD);
+	             recvCount, 1, MPI_INT, MPI_COMM_WORLD);
 	sendDisp[0] = begin;
 	recvDisp[0] = 0;
 	for (int i = 1; i < size; i++) {
@@ -120,7 +124,7 @@ int main(int argc, char **argv) {
 	int *recvBuff = (int *) malloc(recvSize * sizeof(int));
 
 	MPI_Alltoallv(forSorting, sendCount, sendDisp, MPI_INT,
-				  recvBuff, recvCount, recvDisp, MPI_INT, MPI_COMM_WORLD);
+	              recvBuff, recvCount, recvDisp, MPI_INT, MPI_COMM_WORLD);
 
 	sort(recvBuff, recvBuff + recvSize);
 
@@ -130,18 +134,23 @@ int main(int argc, char **argv) {
 	}
 
 	MPI_Gatherv(recvBuff, recvSize, MPI_INT,
-				forSorting, recvCount, recvDisp, MPI_INT, 0, MPI_COMM_WORLD);
+	            forSorting, recvCount, recvDisp, MPI_INT, 0, MPI_COMM_WORLD);
 
 	clock_t sortEnd = clock();
 
 	if (rank == 0) {
 		printf("SORTING PROCESS TAKES %.3lf SECOND.\n", (double) (sortEnd - sortStart) / CLOCKS_PER_SEC);
 		printf("%d ELEMENTS ARE SORTED.\n", dataSize);
-		for (int i = 0; i < dataSize; i++) {
-			out << forSorting[i] << ' ';
+		if (strcmp(argv[2], "nooutput") == 0) {
+			out << "dataSize:" << dataSize << " timeConsumed:"
+			    << ((double) (sortEnd - sortStart) / CLOCKS_PER_SEC))<<endl;
+		} else {
+			for (int i = 0; i < dataSize; i++) {
+				out << forSorting[i] << ' ';
+			}
+			printf("THE RESULTS ARE WRITTEN TO FILE %s. \n", argv[2]);
+			out << endl;
 		}
-		printf("THE RESULTS ARE WRITTEN TO FILE %s. \n", argv[2]);
-		out << endl;
 	}
 
 	free(forSorting);
